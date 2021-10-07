@@ -1,0 +1,32 @@
+#+TITLE: 使用hugo搭建了blog
+#+SUMMARY: 这是一篇测试的文章。
+#+DATE: 2021-10-07T09:34:55+08:00
+#+DRAFT: false
+#+TAGS[]: hugo
+#+CATEGORIES[]: test
+
+* Top level headline
+** Second level
+*** Third level
+    [[https://themes.gohugo.io/themes/hugo-theme-cactus-plus/][Hugo Themes mini]]
+*** Third level
+more text
+         | Name  | Phone | Age |
+         |-------+-------+-----|
+         | Peter |  1234 |  17 |
+         | Anna  |  4321 |  25 |
+
+* Another top level headline
+  #+begin_src c
+    #include <stdio.h>
+
+    int main(int argc, char *argv[])
+    {
+      printf("hello, world!");
+      return 0;
+    }
+  #+end_src
+
+
+
+  

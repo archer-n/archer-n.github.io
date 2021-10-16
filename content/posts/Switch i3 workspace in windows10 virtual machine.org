@@ -1,0 +1,263 @@
+#+TITLE: 在 Windows 10 虚拟机中切换 i3 工作区
+#+DATE: 2021-10-16T12:58:46+08:00
+#+DRAFT: false
+#+SHOWTOC: true
+#+TAGS[]: i3wm kvm qemu nat
+#+CATEGORIES[]: workspace
+
+  我使用i3wm+windows10虚拟机的方式工作时，想使用win+num切换i3的workspace.
+经过一番波折之后在[[https://emacs-china.org/t/qemu-kvm-virtual-machine-manger-windows10-i3wm-win-num-workspace/18331][emacs china]]社区提问得到了解决思路，这里记录下解决方案。
+
+  解决方案：guest与host通信，把 guest 中的 =super+<NUM>=  翻译成 =i3-msg workspace <NUM>= 并传出来，
+  配合开机自启动目前用的没啥大问题。
+
+** 虚拟机与宿主机通信
+
+
+*** 获取NAT虚拟网关地址(获取host固定ip)
+  我使用的 virtual machine manager 创建 windows10虚拟机使用默认的NAT网络, 在guest中访问NAT
+虚拟网关地址可以访问到host。
+
+**** 获取NAT网络名称
+#+begin_src shell
+  sudo virsh net-list
+  [sudo] password for archer: ***
+   Name      State    Autostart   Persistent
+  --------------------------------------------
+   default   active   yes         yes
+#+end_src
+我这里是 default
+
+**** 获取虚拟网关地址
+
+#+begin_src shell
+  # 获取XML中的网络信息
+  sudo virsh net-dumpxml default  # default 是上面获取的网络名称
+  [sudo] password for archer: ***
+  <network connections='1'>
+    <name>default</name>
+    <uuid>5d92e99f-a28e-49e6-a12a-0541a5988435</uuid>
+    <forward mode='nat'>
+      <nat>
+        <port start='1024' end='65535'/>
+      </nat>
+    </forward>
+    <bridge name='virbr0' stp='on' delay='0'/>
+    <mac address='52:54:00:11:59:e0'/>
+    <ip address='192.168.122.1' netmask='255.255.255.0'>
+      <dhcp>
+        <range start='192.168.122.2' end='192.168.122.254'/>
+      </dhcp>
+    </ip>
+  </network>
+#+end_src
+
+获取到 nat虚拟网关地址 ： 192.168.122.1， guest可以通过这个ip访问到host不过必须是联网的情况下。
+
+*** host实现http服务监听guest
+我这里使用了eggjs实现了一个简单的http服务，并使用systemd/user配置为开机自启动。
+
+
+**** eggjs 实现 [[https://github.com/archer-n/vm_message][simple http server]]
+
+- app/router.js 
+  #+begin_src javascript
+    // app/router.js 
+    
+    'use strict';
+  
+    /**
+     ,* @param {Egg.Application} app - egg application
+     ,*/
+    module.exports = app => {
+      const { router, controller } = app;
+      // i3 
+      router.post('/i3/workspace/:id', controller.i3.workspace);  // workspace
+    };
+  #+end_src
+
+- app/controller/i3.js
+  #+begin_src javascript
+    // app/controller/i3.js
+    'use strict';
+  
+    const Controller = require('egg').Controller;
+  
+    /**
+     ,* @swagger
+     ,* tags:
+     ,*   name: I3Controller
+     ,*   description: 处理虚拟机发送i3的相关指令
+     ,*/
+    class I3MsgController extends Controller {
+  
+      get I3Service() {
+        return this.ctx.service.i3;
+      }
+  
+      /**
+       ,* @swagger
+       ,* /i3/workspace/{id}:
+       ,*   post:
+       ,*     summary: i3-msg workspace $id
+       ,*     tags:
+       ,*       - I3Controller
+       ,*     parameters:
+       ,*       - in: path
+       ,*         name: id
+       ,*         type: string
+       ,*         description: workspace id
+       ,*         required: true
+       ,*     response:
+       ,*       200:
+       ,*         description: ok
+       ,*/
+      async workspace() {
+        const id = this.ctx.params.id; // 获取虚拟机id
+        this.ctx.body = await this.I3Service.workspace(id);
+      }
+    }
+  
+    module.exports = I3MsgController;
+  #+end_src
+
+- app/service/i3.js
+  #+begin_src javascript
+    // app/service/i3.js
+    'use strict';
+  
+    const Service = require('egg').Service;
+  
+    const util = require('util');
+    const child_process = require('child_process');
+    const exec = util.promisify(child_process.exec);
+    const fs = require('fs');
+  
+  
+    const I3SOCK = Symbol.for('I3Service#I3SOCK');
+  
+    class I3Service extends Service {
+  
+      // systemd 开机自启动拿不到I3SOCK变量，这里自己去拿一次
+      get I3SOCK() {
+        if (!this.app[I3SOCK]) {
+          try {
+            // directory path
+            const dir = '/run/user/1000/i3/';
+            const files = fs.readdirSync(dir);
+            this.ctx.logger.info('files: %j', files);
+            // files object contains all files names
+            // log them on console
+            for (const file of files) {
+              if (file.startsWith('ipc-socket')) {
+                this.app[I3SOCK] = dir + file;
+                break;
+              }
+            }
+          } catch (err) {
+            this.ctx.logger.error(err);
+          }
+        }
+        return this.app[I3SOCK];
+      }
+  
+      /**
+       ,* i3-msg - send messages to i3 window manager
+       ,* @param {string} message Send ipc message, see `man i3-msg`
+       ,* @returns Promise<any> result
+       ,*/
+      async i3msg(message) {
+        const command = `i3-msg -s ${this.I3SOCK} ${message}`;
+        this.ctx.logger.info('command: %s', command);
+        return await exec(command);
+      }
+  
+      /**
+       ,* i3-msg workspace $id
+       ,* @param {string} id id
+       ,* returns {void}
+       ,*/
+      async workspace(id) {
+        await this.i3msg(`workspace ${id}`);
+      }
+    }
+  
+    module.exports = I3Service;
+  #+end_src
+  
+  
+**** systemd 开机自启动
+~/.config/systemd/user/archer-node-server.service
+#+begin_src
+  [Unit]
+  Description=Archer's Node Server
+
+  [Service]
+  Type=forking
+  ExecStart=/home/archer/workspace/nodejs/vm_message/start.sh # 替换成服务启动脚本
+  ExecStop=/home/archer/workspace/nodejs/vm_message/stop.sh   # 替换成服务停止脚本
+  WorkingDirectory=/home/archer/workspace/nodejs/vm_message   # 服务目录
+  Environment=PATH=/home/archer/.nvm/versions/node/v12.22.3/bin:/usr/bin:/usr/local/bin # 添加node到环境变量
+  Restart=on-failure
+
+  [Install]
+  WantedBy=default.target
+#+end_src
+
+启动systemd服务
+#+begin_src shell
+  systemctl --user start archer-node-server
+  systemctl --user enalbe archer-node-server
+#+end_src
+
+注意： systemd 开机自启动很多环境变量拿不到，如I3SOCK,导致自启动发送i3-msg失败，[[https://github.com/archer-n/vm_message/blob/7c2688fbd422f920c786e11aeaad865fb541435b/app/service/i3.js#L16][我这里自己获取了一次I3SOCK]]。
+
+*** guest监听按键发送给host
+
+**** [[https://www.autohotkey.com/][AutoHotkey]]
+
+使用autohotkey监听windows10虚拟机的按键,并发送给host.
+
+i3-msg workspace.ahk
+#+begin_src shell
+  #NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
+  ; #Warn  ; Enable warnings to assist with detecting common errors.
+  SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
+  SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
+  # host 替换成NAT虚拟网关地址，端口换成你自己定义的http服务的端口号
+  SwitchI3Workspace(wid) {
+      host := "http://192.168.122.1:13999"
+      req := host
+      . "/i3/workspace"
+      . "/"
+      . wid
+
+      whr := ComObjCreate("WinHttp.WinHttpRequest.5.1")
+      whr.Open("POST", req)
+      whr.Send()
+      return
+  }
+
+  #1::SwitchI3Workspace("1")
+  #2::SwitchI3Workspace("2")
+  #3::SwitchI3Workspace("3")
+  #4::SwitchI3Workspace("4")
+  #5::SwitchI3Workspace("5")
+  #6::SwitchI3Workspace("6")
+  #7::SwitchI3Workspace("7")
+  #8::SwitchI3Workspace("8")
+  #9::SwitchI3Workspace("9")
+  #0::SwitchI3Workspace("10")
+#+end_src
+  
+**** [[https://wyagd001.github.io/zh-cn/docs/FAQ.htm#Startup][AutoHotkey 开机自启动]]
+*** 其他
+- autohotkey有时会抽风.. ，一般停止脚本可以解决，不行就重启 - -。
+- systemd开机自启动注意下nodejs, I3SOCK 等环境变量问题。
+
+
+
+
+
+
+

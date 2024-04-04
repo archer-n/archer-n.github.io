@@ -1,7 +1,7 @@
 baseURL: https://archer-n.github.io
 languageCode: zh-cn
-title: Archer
-theme: mini
+title: WangFan
+theme: cactus # https://themes.gohugo.io/themes/hugo-theme-cactus/
 
 # Default content language, support en (English) / zh (Chinese) / nl (Dutch), default 'en'
 defaultContentLanguage: zh
@@ -24,57 +24,57 @@ markup:
     ordered: false
     startLevel: 2
 
-# Social links in footer, support github,twitter,stackoverflow,facebook
-social:
-  # e.g.
-  github: https://github.com/archer-n
-  # twitter: your-github-link
-  # stackoverflow: your-github-link
-  # facebook: your-facebook-link
+
+menu:
+  main:
+    - name: Home
+      url: /
+      weight: 1
+
+    - name: Writtings
+      url: /posts
+      weight: 2
+
+    - name: Tags
+      url: /tags
+      weight: 3
+
+    - name: About
+      url: /about
+      weight: 4
 
 # Site parameters
 params:
-  # Site Author
-  author: Archer
-  # Author biography
-  bio: Software Engineer
-  # Site Description, used in HTML meat
-  description: My Blog
+  colortheme: white # dark, light, white, or classic
 
+  rss: true # generate rss feed. default value is false
 
-  ###########################################
-  # Optional Configuration
-  ###########################################
+  googleAnalyticsAsync: true # use asynchronous tracking. Synchronous tracking by default
 
-  # To enable RSS, you could set `enableRSS: true`, default is `true`
-  enableRSS: true
-  # To enable comments, you may need to set `disqusShortname`
-  enableComments: false
-  # To enable comments, you may need to set `googleAnalytics`
-  enableGoogleAnalytics: false
-  # To enable table of content, you could set `showToc: true`, default is `false`
-  showToc: false
-  # To hidden powerBy message in the page footer, you could set: `showPowerBy: false`, default is `true`
-  showPowerBy: false
-  # To enable math typesetting , you could set `math: true`, default is `false`
-  math: true
-  # To hidden post summary in home page, you could set `hiddenPostSummaryInHomePage: true`, default is `false`
-  hiddenPostSummaryInHomePage: false
-  # Website copy write, default: '© Copyright 2021 ❤️ {params.author}'
-  copyright: ''
+  showAllPostsArchive: true # default
 
-  # Extra links in navigation
-  links:
-    ## e.g.
-    # - name: Project
-    #   path: /project
+  # Home page settings
+  description: "这个人很懒，什么都没留下~"
 
-  # You can put your custom css and js to `static` directory, or use remote css and js files which start with `http://` or `https://`
-  customCSS:
-    ## e.g.
-    # - css/custom.css # local css in `static/css/custom.css`
-    # - https://example.com/custom.css # remote css
-  customJS:
-    ## e.g.
-    # - js/custom.js # local js in `static/js/custom.js`
-    # - https://example.com/custom.js # remote js
+  mainSection: posts # your main section
+
+  showAllPostsOnHomePage: false # default
+  postsOnHomePage: 5 # this option will be ignored if showAllPostsOnHomePage is set to true
+
+  tagsOverview: false # show tags overview by default.
+
+  showProjectsList: true # show projects list by default (if projects data file exists).
+  projectsUrl: https://github.com/archer-n # title link for projects list
+
+  # https://gohugo.io/functions/format/#hugo-date-and-time-templating-reference
+  dateFormat: "2006-01-02" # default
+
+  # Post page settings
+  show_updated: true # default
+  showReadTime: true # default
+
+  # Social links in footer, support github,twitter,stackoverflow,facebook
+  social:
+    # e.g.
+    - name: github
+      link: https://github.com/archer-n

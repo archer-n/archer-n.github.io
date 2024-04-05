@@ -54,7 +54,7 @@ params:
   showAllPostsArchive: true # default
 
   # Home page settings
-  description: "这个人很懒，什么都没留下~"
+  description: "博学而笃志，切问而近思"
 
   mainSection: posts # your main section
 

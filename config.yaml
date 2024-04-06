@@ -83,6 +83,3 @@ params:
     - name: github
       link: https://github.com/archer-n
 
-
-staticDir:
-  - assets/

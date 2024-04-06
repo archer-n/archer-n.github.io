@@ -1,0 +1,100 @@
+#+TITLE: 通过「SVG」文件生成「Flutter」不规则图形路径
+#+DATE: 2024-04-06T07:41:48+08:00
+#+DRAFT: false
+#+TAGS[]: flutter svg
+#+CATEGORIES[]: developer
+
+日常开发中，会碰到一些不规则图形的裁剪，自己去算难免速度会慢一些，在此记录快速生成「Flutter」 Path路径的快速方法。
+
+
+** 前提
+
+  https://shapemaker.web.app/#/ 网站可以制作任意图形，并生成对应的「Flutter」Path路径代码。同时它提供「SVG To Custom Paint <>」
+  功能，可以将「SVG」文件中的路径转换成「Flutter」Path路径代码。
+
+** 基本思想
+
+  设计师提供不规则路径的「SVG」文件，然后使用 https://shapemaker.web.app/#/ 网站提供「SVG To Custom Paint <>」功能，将转换成
+  「SVG」文件转换成「Flutter」Path路径代码。
+
+** 实现步骤
+
+  设计师：
+    1. 使用 *AI工具* ，sketch导出不行
+    2. 制作1倍图， *解除所有分组* ，导出SVG
+  工程师：
+    3. 拿到SVG后去 https://shapemaker.web.app/#/ 使用「SVG To Custom Paint <>」功能，生成Flutter路径代码
+    4. 按比例缩放得到的路径代码
+
+  *注意：设计师根据此步骤导出的「SVG」文件可以被「shapemaker」网站正常识别。导出步骤属于经验所得，不一定完全正确。*
+
+
+** 示例
+
+1. 步骤3.1，使用「shapemaker」网站的「SVG To Custom Paint <>」
+  [[../../assets/images/svg-to-flutter-path/setp1.png]]
+2. 步骤3.2，生产flutter路径代码
+  [[../../assets/images/svg-to-flutter-path/setp2-4.png]]
+3. 步骤4，处理拿到的代码，按比例缩放生成的路径
+#+begin_src dart
+  /// 选择背景裁剪路径基类，提供一些辅助方法
+  abstract class SelectBackgroundCustomClipper extends CustomClipper<Path> {
+    /// 宽的缩放因子
+    double factorX = 1;
+    /// 高的缩放因子
+    double factorY = 1;
+
+    @override
+    Path getClip(Size size) {
+      factorX = size.width / 345;  // svg源文件的宽
+      factorY = size.height / 210; // svg元文件的高
+      return getSelectBackgroundClip();
+    }
+
+    /// 获取裁剪路径
+    Path getSelectBackgroundClip();
+
+    /// 包装方法（计算时增加缩放因子）
+    void moveTo(Path path, double x, double y) {
+      path.moveTo(x * factorX, y * factorY);
+    }
+
+    /// 包装方法（计算时增加缩放因子）
+    void lineTo(Path path, double x, double y) {
+      path.lineTo(x * factorX, y * factorY);
+    }
+
+    /// 包装方法（计算时增加缩放因子）
+    void cubicTo(Path path, double x1, double y1, double x2, double y2, double x3, double y3) {
+      path.cubicTo(x1 * factorX, y1 * factorY, x2 * factorX, y2 * factorY, x3 * factorX, y3 * factorY);
+    }
+  }
+
+  class DemoSelectBackgroundCustomClipper extends SelectBackgroundCustomClipper {
+    @override
+    Path getSelectBackgroundClip() {
+      final path = Path();
+      moveTo(path, 8, 0);
+      lineTo(path, 67.8, 0);
+      cubicTo(path, 71, 0, 73.8, 1.9, 75.1, 4.8);
+      lineTo(path, 89.8, 37.9);
+      cubicTo(path, 91.7, 42.199999999999996, 96, 45, 100.8, 45);
+      lineTo(path, 335, 45);
+      cubicTo(path, 339.4, 45, 343, 48.6, 343, 53);
+      lineTo(path, 343, 201);
+      cubicTo(path, 343, 205.4, 339.4, 209, 335, 209);
+      lineTo(path, 8, 209);
+      cubicTo(path, 3.5999999999999996, 209, 0, 205.4, 0, 201);
+      lineTo(path, 0, 8);
+      cubicTo(path, 0, 3.5999999999999996, 3.5, 0.09999999999999964, 7.8, 0);
+      lineTo(path, 8, 0);
+      path.close();
+      return path;
+    }
+
+    @override
+    bool shouldReclip(covariant CustomClipper<Path> oldClipper) {
+      return false;
+    }
+  }
+#+end_src

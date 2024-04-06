@@ -1,0 +1,9 @@
+{
+  "list": [
+    {
+      "name":".emacs.d",
+      "url":"https://github.com/archer-n/emacs.d/tree/feature/2024",
+      "desc":"我的Emacs配置"
+    }
+  ]
+}
